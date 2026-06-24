@@ -258,7 +258,7 @@ pre.snip{background:var(--bg);border:1px solid var(--bord2);border-radius:6px;pa
       <label for="keyIn">PSI API Key:</label>
       <input class="key-inp" id="keyIn" type="password" placeholder="AIzaSy…" autocomplete="off" spellcheck="false">
       <button class="btn-save" id="keySave">Save</button>
-      <span class="key-note">Free key at <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> → APIs &amp; Services → Credentials. Used for PageSpeed Insights + CrUX. Stored only in your browser.</span>
+      <span class="key-note">Required for CrUX field data + PageSpeed Insights lab data. Free key at <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> → APIs &amp; Services → Credentials → Create API Key. Enable "Chrome UX Report API" and "PageSpeed Insights API". Stored only in your browser — never sent anywhere except Google.</span>
     </div>
   </div>
 </div>
@@ -775,6 +775,12 @@ async function run(){
   const key=Stor.key();
   if(!u1){document.getElementById('u1').focus();return}
   try{new URL(u1)}catch{alert('Please enter a valid URL including https://');return}
+  if(!key){
+    document.getElementById('keyPanel').classList.add('open');
+    document.getElementById('histPanel').classList.remove('open');
+    document.getElementById('keyIn').focus();
+    return;
+  }
   S.url1=u1; S.url2=u2||null;
   S.crux1=S.crux2=S.psi=S.hist=null;
 
@@ -799,7 +805,10 @@ async function run(){
     Stor.push({url:u1,passed:passAll(c),lcp:lcp?fmtV(lcp,'largest_contentful_paint'):null,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
     updateHist();
   }).catch(e=>{
-    document.getElementById('mGrid').innerHTML=`<div style="grid-column:1/-1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:24px;color:var(--dim);font-size:.875rem">⚠ ${e.message==='no_data'?'No CrUX field data for this URL — not enough real Chrome users visited it. Lab data (PSI) will still show below if you have an API key.':'Error fetching field data. Check the URL and try again.'}</div>`;
+    const msg=e.message==='no_data'
+      ?'No URL-level CrUX field data — not enough real Chrome users visited this specific URL. Lab data (PSI) will still load below.'
+      :'CrUX API error. Check your API key is saved correctly (🔑 button top-right).';
+    document.getElementById('mGrid').innerHTML=`<div style="grid-column:1/-1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:24px;color:var(--dim);font-size:.875rem">⚠ ${msg}</div>`;
   });
 
   p2.then(c2=>{
