@@ -386,6 +386,10 @@ const Stor = {
   }
 };
 
+// HTML parser closes the script block on a literal closing-script-tag in source.
+// Use _SC wherever snippet text needs to show that tag.
+const _SC = '<' + '/' + 'script>';
+
 /* ─── FORMAT ─────────────────────────────── */
 function fmtV(v,k){
   if(k==='cumulative_layout_shift') return v.toFixed(3);
@@ -582,7 +586,7 @@ function renderTrend(hist){
   document.getElementById('trendSec').style.display='block';
   const ms=hist.record.metrics, periods=hist.record.collectionPeriods||[];
   const canvas=document.getElementById('tc');
-  const W=canvas.offsetWidth||960, H=190, DPR=devicePixelRatio||1;
+  const W=canvas.getBoundingClientRect().width||canvas.offsetWidth||960, H=190, DPR=devicePixelRatio||1;
   canvas.width=W*DPR; canvas.height=H*DPR;
   canvas.style.width=W+'px'; canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');
@@ -659,21 +663,16 @@ function renderOpps(psi){
   list.innerHTML=opps.slice(0,3).map(mk).join('');
   if(opps.length>3){
     const rest=opps.slice(3);
-    const hidden=rest.map(o=>`<div class="opp" style="display:none" data-more>${mk(o).slice(9)}`).join(''); // trick: reuse mk
-    // Actually let's do it properly:
-    const moreDiv=document.createElement('div');
-    moreDiv.innerHTML=rest.map(o=>`<div class="opp" style="display:none" data-more>${mk(o).slice(9)}`).join('');
-    // Fix: just append more items properly
-    const frag=document.createDocumentFragment();
     rest.forEach(o=>{
       const d=document.createElement('div');
-      d.innerHTML=mk(o); d.querySelector('.opp').style.display='none';
-      d.querySelector('.opp').dataset.more='1';
-      frag.appendChild(d.querySelector('.opp'));
+      d.innerHTML=mk(o);
+      const el=d.querySelector('.opp');
+      el.style.display='none';
+      el.dataset.more='1';
+      list.appendChild(el);
     });
-    list.appendChild(frag);
     const btn=document.createElement('button');
-    btn.className='more-btn'; btn.textContent=`Show ${rest.length} more`;
+    btn.className='more-btn'; btn.textContent=`Show ${rest.length} more opportunities`;
     btn.onclick=()=>{list.querySelectorAll('[data-more]').forEach(el=>el.style.display='flex');btn.remove()};
     list.after(btn);
   }
@@ -693,8 +692,8 @@ function renderFixes(psi){
     const items=rb?.details?.items?.slice(0,2)||[];
     const jsUrls=items.filter(i=>i.url?.endsWith('.js')).map(i=>i.url);
     const cssUrls=items.filter(i=>i.url?.endsWith('.css')).map(i=>i.url);
-    fixes.push({imp:(rb.details?.overallSavingsMs||0)>500?'high':'medium',title:'Eliminate render-blocking resources',desc:rb.displayValue||'Render-blocking CSS/JS delays First Contentful Paint. Defer non-critical scripts and preload critical stylesheets.',snip:jsUrls.length?`<!-- Defer JS (don't block render) -->\n${jsUrls.map(u=>`<script src="${u}" defer></script>`).join('\n')}\n\n<!-- Preload critical CSS -->\n<link rel="preload" as="style" href="${cssUrls[0]||'critical.css'}" onload="this.rel='stylesheet'">`:
-`<!-- Defer non-critical JS -->\n<script src="your-script.js" defer></script>\n<link rel="preload" as="style" href="critical.css" onload="this.rel='stylesheet'">`});
+    fixes.push({imp:(rb.details?.overallSavingsMs||0)>500?'high':'medium',title:'Eliminate render-blocking resources',desc:rb.displayValue||'Render-blocking CSS/JS delays First Contentful Paint. Defer non-critical scripts and preload critical stylesheets.',snip:jsUrls.length?`<!-- Defer JS (don't block render) -->\n${jsUrls.map(u=>`<script src="${u}" defer>${_SC}`).join('\n')}\n\n<!-- Preload critical CSS -->\n<link rel="preload" as="style" href="${cssUrls[0]||'critical.css'}" onload="this.rel='stylesheet'">`:
+`<!-- Defer non-critical JS -->\n<script src="your-script.js" defer>${_SC}\n<link rel="preload" as="style" href="critical.css" onload="this.rel='stylesheet'">`});
   }
   const ujs=a['unused-javascript'];
   if(ujs?.score!==null&&ujs?.score<0.9&&(ujs?.details?.overallSavingsMs||0)>200) fixes.push({imp:'medium',title:'Remove or defer unused JavaScript',desc:ujs.displayValue||'Unused JS extends parse/compile time and Total Blocking Time. Code-split and lazy-load bundles that are not needed on initial load.',snip:`// Replace static imports for non-critical modules:\n// Before\nimport { bigLib } from './big-lib';\n\n// After — load on demand\nconst { bigLib } = await import('./big-lib');`});
